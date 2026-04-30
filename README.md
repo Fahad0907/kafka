@@ -187,3 +187,247 @@ Isr: 2,3
 * Kafka ensures durability using **replication + ISR**
 * If leader fails → Kafka elects new leader from ISR
 * If ISR shrinks → risk of data loss increases
+
+# Kafka Core Concepts: Producer, Partition, Offset, Consumer & Consumer Group
+
+This document explains how the main components of Kafka are connected and work together.
+
+---
+
+## 🧠 Big Picture
+
+👉 **Producer → Partition → Offset → Consumer → Consumer Group**
+
+---
+
+## 🔄 Message Flow (Step-by-Step)
+
+### 1. Producer sends a message
+
+```python
+producer.send("orders", b"order_created")
+```
+
+* Producer sends data to a **topic**
+* Example topic: `orders`
+
+---
+
+### 2. Kafka selects a partition
+
+If topic has multiple partitions:
+
+```
+orders topic
+ ├── Partition 0
+ ├── Partition 1
+ └── Partition 2
+```
+
+Kafka decides:
+
+* With key → same partition (based on hash)
+* Without key → round-robin
+
+---
+
+### 3. Message is stored in partition
+
+Each partition is like a log:
+
+```
+Partition 1
+-------------
+Offset 0 → old message
+Offset 1 → old message
+Offset 2 → order_created
+```
+
+---
+
+### 4. Offset is assigned
+
+* Offset = position of message inside partition
+* Always increasing (0,1,2,3...)
+
+```
+Offset = 2
+```
+
+---
+
+## 🔑 Core Concepts
+
+---
+
+### 🧑‍💻 Producer
+
+* Sends messages to Kafka topics
+* Can decide partition (using key)
+* Controls reliability (acks, retries)
+
+---
+
+### 📦 Partition
+
+* A topic is divided into partitions
+* Each partition stores messages
+* Enables parallel processing
+
+---
+
+### 🔢 Offset
+
+* Unique ID per message inside a partition
+* Used by consumers to track progress
+
+Example:
+
+```
+Partition 0 → offsets: 0,1,2
+Partition 1 → offsets: 0,1,2
+```
+
+⚠️ Offset is **not global**, only per partition
+
+---
+
+### 📥 Consumer
+
+* Reads messages from partitions
+* Tracks offset to know where to continue
+
+Example:
+
+```
+Consumer reads up to offset 10
+Next read starts from offset 11
+```
+
+---
+
+### 👥 Consumer Group
+
+* A group of consumers working together
+* Share partitions among themselves
+
+---
+
+## 📊 Consumer Group Behavior
+
+### Case 1: Equal consumers and partitions
+
+```
+Partitions: 3
+Consumers: 3
+```
+
+```
+Consumer A → Partition 0
+Consumer B → Partition 1
+Consumer C → Partition 2
+```
+
+---
+
+### Case 2: Fewer consumers
+
+```
+Partitions: 3
+Consumers: 2
+```
+
+```
+Consumer A → Partition 0,1
+Consumer B → Partition 2
+```
+
+---
+
+### Case 3: More consumers
+
+```
+Partitions: 2
+Consumers: 3
+```
+
+```
+Consumer A → Partition 0
+Consumer B → Partition 1
+Consumer C → idle
+```
+
+---
+
+## 🔁 Offset in Consumer Groups
+
+Each group tracks its own offsets:
+
+```
+Group A → offset 100
+Group B → offset 50
+```
+
+👉 Different applications can read the same topic independently
+
+---
+
+## 🔗 How Everything Connects
+
+```
+Producer
+   ↓
+Topic
+   ↓
+Partition (chosen by Kafka)
+   ↓
+Message stored with Offset
+   ↓
+Consumer reads using Offset
+   ↓
+Consumer Group manages multiple consumers
+```
+
+---
+
+## 🎯 Key Rules
+
+* 1 partition = 1 consumer (per group)
+* Ordering is guaranteed **within a partition only**
+* Offsets are per partition
+* Consumer groups enable scaling
+
+---
+
+## 🔥 Real Example
+
+```
+Producer → sends "order_created"
+
+Kafka:
+  Partition 0 → Offset 0
+  Partition 1 → Offset 0
+  Partition 2 → Offset 0
+
+Consumer Group:
+  Consumer A → Partition 0
+  Consumer B → Partition 1
+  Consumer C → Partition 2
+```
+
+---
+
+## 🧠 Final Summary
+
+* Producer sends messages
+* Kafka stores them in partitions
+* Each message gets an offset
+* Consumers read messages using offsets
+* Consumer groups distribute work across consumers
+
+---
+
+## 💥 Interview One-Liner
+
+> A Kafka producer sends messages to a topic, Kafka assigns them to partitions where each message gets an offset, and consumers in a consumer group read those messages in parallel by dividing partitions among themselves.
+
